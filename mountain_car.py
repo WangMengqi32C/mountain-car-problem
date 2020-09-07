@@ -5,6 +5,7 @@ import datetime
 from contextlib import contextmanager
 from joblib import dump, load
 from pathlib import Path
+import pickle
 
 import random
 from math import sqrt, exp
@@ -15,7 +16,7 @@ from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.cluster import KMeans
 
-from display_caronthehill import save_caronthehill_image
+from INFO8003.continuous_domain.display_caronthehill import save_caronthehill_image
 
 import cv2
 import matplotlib
@@ -321,12 +322,14 @@ class Agent:
 
 # ----------------------------------------------------------------------------
 class Fitted_Q_Agent(Agent):
-    def __init__(self, domain):
+    figure_path="/home/wmq1/Study/Intern/mountain-car-problem"
+    def __init__(self, domain,path):
         """
         Initialize a simple agent.
         """
         super().__init__(domain)
         self.model = None
+        self.figure_path=path
 
     def select_action(self, p, s):
         """
@@ -360,10 +363,10 @@ class Fitted_Q_Agent(Agent):
         print("Total number of samples in the four-tuples set : {}".format(len(four_tuples)))
 
         # # Plot variables
-        # returns = np.zeros(n)
-        # distances = np.zeros(n)
-        # previous_Q = np.zeros(four_tuples.shape[0])
-        # current_Q = np.zeros(four_tuples.shape[0])
+        returns = np.zeros(n)
+        distances = np.zeros(n)
+        previous_Q = np.zeros(four_tuples.shape[0])
+        current_Q = np.zeros(four_tuples.shape[0])
 
         with measure_time('Computing Q...'):
             # Iteration N=1
@@ -372,19 +375,21 @@ class Fitted_Q_Agent(Agent):
             y = four_tuples[:, 3]  # Take all corresponding {r}
             model.fit(X, y)  # Train the model
             self.model = model
-
-            # print("Saving model iteration 1...")
-            # dump(model, 'Figures/{}/Models/Q1.pkl'.format(model_name))
+            directory='Figures/{}/Models/Q1.pkl'.format(model_name)
+            path = os.path.join(self.figure_path, directory) 
+            os.makedirs(path)
+            print("Saving model iteration 1...")
+            pickle.dump(model, open('Figures/{}/Models/Q1.pkl'.format(model_name)))
 
             # # Compute the Bellman residual
-            # print("Computing Bellman residual iteration 1 ...")
-            # current_Q = model.predict(X)  # Predict Q
-            # distances[0] = self.compute_bellman_residuals(current_Q, previous_Q)
-            # previous_Q = current_Q
+            print("Computing Bellman residual iteration 1 ...")
+            current_Q = model.predict(X)  # Predict Q
+            distances[0] = self.compute_bellman_residuals(current_Q, previous_Q)
+            previous_Q = current_Q
 
             # # Compute the expected return
-            # print("Computing expected return iteration 1 ...")
-            # returns[0] = self.compute_score()
+            print("Computing expected return iteration 1 ...")
+            returns[0] = self.compute_score()
 
             # Iteration N > 1
             for i in range(n-1):
@@ -407,44 +412,45 @@ class Fitted_Q_Agent(Agent):
                 self.model = model
 
         #         # Save the model
-        #         print("Saving model iteration {} ...".format(i+2))
-        #         dump(model, 'Figures/{}/Models/Q{}.pkl'.format(model_name,i+2))
+                print("Saving model iteration {} ...".format(i+2))
+                save_model=open("Figures/{}/Models/Q{}.pkl".format(model_name,i+2),"wb")
+                pickle.dump(model, save_model)
 
         #         # Compute the Bellman residual
-        #         print("Computing Bellman residuals iteration {} ...".format(i+2))
-        #         current_Q = model.predict(X)
-        #         distances[i+1] = self.compute_bellman_residuals(current_Q, previous_Q)
-        #         previous_Q = current_Q
+                print("Computing Bellman residuals iteration {} ...".format(i+2))
+                current_Q = model.predict(X)
+                distances[i+1] = self.compute_bellman_residuals(current_Q, previous_Q)
+                previous_Q = current_Q
 
         #         # Compute the expected return
-        #         print("Computing expected return iteration {} ...".format(i+2))
-        #         returns[i+1] = self.compute_score()
+                print("Computing expected return iteration {} ...".format(i+2))
+                returns[i+1] = self.compute_score()
 
-        #         # For N = 5, 10, 20, 50
-        #         if i in [3, 8, 18, 48]:
-        #             # Create heatmaps
-        #             print("Create heatmaps iteration {} ...".format(i+2))
-        #             self.create_heatmaps(model_name, i+2)
+                # For N = 5, 10, 20, 50
+                if i in [0,3,8]:
+                    # Create heatmaps
+                    print("Create heatmaps iteration {} ...".format(i+2))
+                    self.create_heatmaps(model_name, i+2)
 
-        #             # Create optimal trajectory
-        #             print("Create optimal trajectory iteration {} ...".format(i+2))
-        #             opt_traj = self.test_policy(p=-0.5, s=0)
-        #             dump(opt_traj,'Figures/{}/Optimal_trajectory/traj_mu_{}.txt'.format(model_name, i+2))
-        #             self.plot_trajectory(opt_traj, model_name, i+2)
+                    # Create optimal trajectory
+                    print("Create optimal trajectory iteration {} ...".format(i+2))
+                    opt_traj = self.test_policy(p=-0.5, s=0)
+                    dump(opt_traj,'Figures/{}/Optimal_trajectory/traj_mu_{}.txt'.format(model_name, i+2))
+                    self.plot_trajectory(opt_traj, model_name, i+2)
 
-        #             # Create a video from that trajectory
-        #             print("Create video iteration {} ...".format(i+2))
-        #             self.produce_video(opt_traj, model_name, i+2)
+                    # Create a video from that trajectory
+                    # print("Create video iteration {} ...".format(i+2))
+                    # self.produce_video(opt_traj, model_name, i+2)
 
         # # Save distances (Bellman residuals) and plot them
-        # print("Save and plot distances...")
-        # dump(distances,'Figures/{}/Distances/distances.txt'.format(model_name))
-        # self.plot_distances(distances, model_name)
+        print("Save and plot distances...")
+        dump(distances,'Figures/{}/Distances/distances.txt'.format(model_name))
+        self.plot_distances(distances, model_name)
 
         # # Save returns and plot them
-        # print("Save and plot returns...")
-        # dump(returns, 'Figures/{}/Expected_returns/score.txt'.format(model_name))
-        # self.plot_score(returns, model_name)
+        print("Save and plot returns...")
+        dump(returns, 'Figures/{}/Expected_returns/score.txt'.format(model_name))
+        self.plot_score(returns, model_name)
 
     def create_heatmaps(self, model_name, iteration):
         """
@@ -475,6 +481,7 @@ class Fitted_Q_Agent(Agent):
         plt.xlabel("p")
         plt.ylabel("s")
         plt.savefig("Figures/{}/Heatmaps/Q_acc_{}.eps".format(model_name, iteration))
+        print("here")
         plt.close()
 
         # Heatmap of Q(.,-4)
@@ -719,23 +726,26 @@ def plot_trajectory_distribution(self, trajectory):
 
 # ----------------------------------------------------------------------------
 if __name__ == '__main__':
+    # Figure Directory 
+    figure_dir = "/home/wmq1/Study/Intern/mountain-car-problem"
+
     # Init of the instances
     domain = Domain()
-    FQI_agent = Fitted_Q_Agent(domain)
+    FQI_agent = Fitted_Q_Agent(domain,figure_dir)
     paramQ_agent = Parametric_Q_Agent(domain, 210, 0.01, 0.9)
 
     # # Fitted Q-Iteration
-    # lin_reg = LinearRegression()
-    # FQI_agent.fitted_Q_iteration(50, lin_reg, "Linear_regression")
+    #lin_reg = LinearRegression()
+    #FQI_agent.fitted_Q_iteration(5, lin_reg, "Linear_regression")
 
-    # trees = ExtraTreesRegressor(n_estimators=50)
-    # FQI_agent.fitted_Q_iteration(50, trees, "Extra_trees")
+    trees = ExtraTreesRegressor(n_estimators=50)
+    FQI_agent.fitted_Q_iteration(10, trees, "Extra_trees")
 
-    neural_net = MLPRegressor(hidden_layer_sizes=(15, 20),
-                              activation='tanh',
-                              solver='adam',
-                              max_iter=2000)
-    FQI_agent.fitted_Q_iteration(50, neural_net, "Neural_nets")
+    #neural_net = MLPRegressor(hidden_layer_sizes=(15, 20),
+    #                          activation='tanh',
+    #                          solver='adam',
+    #                          max_iter=2000)
+    #FQI_agent.fitted_Q_iteration(50, neural_net, "Neural_nets")
 
     # # Parametric Q-learning
     # paramQ_agent.parametric_Q_learning(1000)
